@@ -4,7 +4,6 @@ SCM="~/projects/samba/samba-perf"
 PKG="~/projects/fedora/samba"
 REPO="~/repo/f23/x86_64"
 REPO_NAME="jarrpa"
-NODES="ganesh"
 
 MOCK_OPTS="--no-clean --without=configure --nocheck --no-cleanup-after"
 if [ "x${1}" == "xclean" ]; then
@@ -39,11 +38,10 @@ if [ "${NEW_MD5}" != "${OLD_MD5}" ]; then
   echo "sudo mock ${MOCK_OPTS} -r f23-x86_64 rebuild ${SRPM}"
   sudo mock ${MOCK_OPTS} -r f23-x86_64 rebuild ${SRPM}
   popd
-  vagrant rsync
   if [ "x${OLD_MD5}" != "x" ]; then
     CMD="SAMBA_PKGS=`dnf list installed | grep \"samba\\\|ctdb\\\|libwb\\\|libsmb\" | awk '{print $1}'`; sudo dnf reinstall ${SAMBA_PKGS}"
   else
     CMD="sudo dnf --disablerepo=* --enablerepo=${REPO_NAME} update"
   fi
-  vagrant ssh ${NODES} -c "${CMD}"
+  ./scripts/hark-a-vagrant.sh ${CMD}
 fi

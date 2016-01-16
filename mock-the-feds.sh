@@ -1,6 +1,8 @@
 #!/bin/bash
 
 SCM=~/projects/samba/samba-perf
+BASE="8108f0d"
+VERS="4.4.0"
 PKG=~/projects/fedora/samba
 REPO=~/repos/f23/x86_64
 REPO_NAME="jarrpa"
@@ -16,23 +18,27 @@ fi
 
 pushd $PKG
 
-VERSION=$(grep "define samba_version" samba.spec | awk '{print $3}')
-RELEASE=$(grep "define main_release" samba.spec | awk '{print $3}')
-SRPM="samba-${VERSION}-${RELEASE}.fc23.src.rpm"
-
-if [ -f "${REPO}/${SRPM}" ]; then
-  CMD="SAMBA_PKGS=`dnf -C list installed | grep \"samba\\\|ctdb\\\|libwb\\\|libsmb\" | awk '{print $1}'`; sudo dnf reinstall \$SAMBA_PKGS"
-else
-  CMD="sudo dnf --disablerepo=* --enablerepo=${REPO_NAME} update"
-fi
-
 pushd $SCM
-git archive --format=tar.gz --prefix=samba-${VERSION}/ HEAD -o $PKG/samba-${VERSION}.tar.gz
+RELNUM=`git rev-list ${BASE}..HEAD --abbrev-commit | wc -l`
+RELEASE="${RELNUM}.${BASE}"
+
+SRPM="samba-${VERS}-${RELEASE}.fc23.src.rpm"
+
+git archive --format=tar.gz --prefix=samba-${VERS}/ HEAD -o $PKG/samba-${VERS}.tar.gz
 popd
 
+sed -i "s/\\(define samba_version \\).*/\\1${VERS}/" samba.spec
+sed -i "s/\\(define main_release \\).*/\\1${RELEASE}/" samba.spec
+md5sum samba-${VERS}.tar.gz >sources
 fedpkg --dist f23 srpm
 sudo mock ${MOCK_OPTS} -r f23-x86_64 rebuild ${SRPM}
 
 popd
+
+if [ -f "${REPO}/${SRPM}" ]; then
+  CMD="SAMBA_PKGS=\`dnf -C list installed | grep \"samba\\\|ctdb\\\|libwb\\\|libsmb\" | awk '{printf \$1; printf \" \"}'\`; sudo dnf -y reinstall \$SAMBA_PKGS"
+else
+  CMD="sudo dnf -y --disablerepo=* --enablerepo=${REPO_NAME} update"
+fi
 
 ./scripts/hark-a-vagrant.sh ${CMD}

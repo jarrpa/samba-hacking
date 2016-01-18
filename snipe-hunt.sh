@@ -1,9 +1,9 @@
 #!/bin/bash
 
 NAME="glusterfs"
-CASE="-defaults"
+CASE="-autocase"
 declare -A CONF
-CONF=( ["case sensitive"]="auto" ["preserve case"]="yes" ["short preserve case"]="yes" )
+CONF=( ["case sensitive"]="auto" ["preserve case"]="yes" ["short preserve case"]="yes" ) #["store dos attributes"]="no" ["map archive"]="no" )
 PROT="NT1"
 
 if [[ $# > 0 ]]; then
@@ -46,6 +46,14 @@ if [[ $# > 0 ]]; then
   shift
 fi
 
+LOG_DIRS="/var/log/samba"
+if [[ $NAME == glusterfs* ]]; then
+  LOG_DIRS+=" /var/log/glusterfs"
+  SHARE="share1"
+else
+  SHARE="share2"
+fi
+
 for OPT in "${!CONF[@]}"; do
   sed -i "s/\\(:${OPT}: \\).*/\\1'${CONF[${OPT}]}'/" vagrant.yaml
 done
@@ -61,12 +69,21 @@ tcpdump -w scripts/${RUN_NAME}.pcap -i virbr0 -s 0 tcp &
 PID=$!
 
 smbclient -m ${PROT} -U vagrant%vagrant -L ganesh || true
-smbclient -m ${PROT} -U vagrant%vagrant //ganesh/share1 -c "put scripts/foo foo; rm foo; q;" && SAVE=true || SAVE=false
+echo "Connecting to ${SHARE}..."
+smbclient -m ${PROT} -U vagrant%vagrant //ganesh/${SHARE} -c "put scripts/foo foo; rm foo; q;" && SAVE=true || SAVE=false
 
 kill -INT $PID
 
 if [ $SAVE == true ]; then
-  vagrant ssh ganesh -c "sudo tar -czvf ${RUN_NAME}_logs.tgz /var/log/samba /var/log/glusterfs"
+  vagrant ssh ganesh -c "sudo tar -czvf ${RUN_NAME}_logs.tgz ${LOG_DIRS}"
   vagrant ssh-config >scripts/ssh_config
   scp -F scripts/ssh_config vagrant@ganesh:${RUN_NAME}_logs.tgz scripts/
+  cd scripts
+  tar -xzvf ${RUN_NAME}_logs.tgz -O var/log/samba/log.jarrpa >${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i "s/\"/'/" ${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i "s/^\[/\"[/" ${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i "s/\] \.\./]\",\"../" ${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i 'N;s/)\n  /)","/;P;D' ${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i "s/^  /,,\"/" ${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i "s/$/\"/" ${RUN_NAME}.samba.log.jarrpa.csv
 fi

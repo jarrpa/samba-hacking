@@ -25,6 +25,13 @@ if [[ $# > 0 ]]; then
     CONF["short preserve case"]="no"
     shift
     ;;
+    nomangle)
+    CASE="-$1"
+    CONF["case sensitive"]="no"
+    CONF["preserve case"]="no"
+    CONF["short preserve case"]="no"
+    shift
+    ;;
   esac
 fi
 
@@ -70,7 +77,7 @@ PID=$!
 
 smbclient -m ${PROT} -U vagrant%vagrant -L ganesh || true
 echo "Connecting to ${SHARE}..."
-smbclient -m ${PROT} -U vagrant%vagrant //ganesh/${SHARE} -c "put scripts/foo foo; rm foo; q;" && SAVE=true || SAVE=false
+smbclient -m ${PROT} -U vagrant%vagrant //ganesh/${SHARE} -c "put scripts/foo foo; q;" && SAVE=true || SAVE=false
 
 kill -INT $PID
 
@@ -80,7 +87,7 @@ if [ $SAVE == true ]; then
   scp -F scripts/ssh_config vagrant@ganesh:${RUN_NAME}_logs.tgz scripts/
   cd scripts
   tar -xzvf ${RUN_NAME}_logs.tgz -O var/log/samba/log.jarrpa >${RUN_NAME}.samba.log.jarrpa.csv
-  sed -i "s/\"/'/" ${RUN_NAME}.samba.log.jarrpa.csv
+  sed -i "s/\"/'/g" ${RUN_NAME}.samba.log.jarrpa.csv
   sed -i "s/^\[/\"[/" ${RUN_NAME}.samba.log.jarrpa.csv
   sed -i "s/\] \.\./]\",\"../" ${RUN_NAME}.samba.log.jarrpa.csv
   sed -i 'N;s/)\n  /)","/;P;D' ${RUN_NAME}.samba.log.jarrpa.csv

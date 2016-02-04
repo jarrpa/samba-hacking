@@ -1,8 +1,8 @@
 #!/bin/bash
 
 SCM=~/projects/samba/samba-perf
-BASE="8108f0d"
-VERS="4.4.0"
+BASE="e269968"
+VERS="4.5.0"
 PKG=~/projects/fedora/samba
 REPO=~/repos/f23/x86_64
 REPO_NAME="jarrpa"
@@ -40,4 +40,4 @@ sudo mock ${MOCK_OPTS} -r f23-x86_64 rebuild ${SRPM} || exit $?
 
 popd
 
-./scripts/hark-a-vagrant.sh ${CMD}
+./hark-a-vagrant.sh ${CMD}

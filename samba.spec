@@ -8,7 +8,7 @@
 %bcond_without configure
 %define __spec_install_pre %{___build_pre}
 
-%define main_release 10.91f6439
+%define main_release 0.030fd72
 
 %define samba_version 4.5.1
 %define talloc_version 2.1.7
@@ -31,7 +31,6 @@
 %global with_libsmbclient 1
 %global with_libwbclient 1
 
-%global with_pam_smbpass 0
 %global with_internal_talloc 1
 %global with_internal_tevent 1
 %global with_internal_tdb 1
@@ -131,12 +130,19 @@ Provides: samba4 = %{samba_depver}
 Obsoletes: samba4 < %{samba_depver}
 
 # We don't build it outdated docs anymore
-Obsoletes: samba-doc
+Provides: samba-doc = %{samba_depver}
+Obsoletes: samba-doc < %{samba_depver}
+
 # Is not supported yet
-Obsoletes: samba-domainjoin-gui
+Provides: samba-domainjoin-gui = %{samba_depver}
+Obsoletes: samba-domainjoin-gui < %{samba_depver}
+
 # SWAT been deprecated and removed from samba
-Obsoletes: samba-swat
-Obsoletes: samba4-swat
+Provides: samba-swat = %{samba_depver}
+Obsoletes: samba-swat < %{samba_depver}
+
+Provides: samba4-swat = %{samba_depver}
+Obsoletes: samba4-swat < %{samba_depver}
 
 BuildRequires: cups-devel
 BuildRequires: dbus-devel
@@ -176,7 +182,7 @@ BuildRequires: glusterfs-devel >= 3.4.0.16
 BuildRequires: libcephfs1-devel
 %endif
 %if %{with_dc}
-BuildRequires: gnutls-devel
+BuildRequires: gnutls-devel >= 3.4.7
 %endif
 
 # pidl requirements
@@ -223,7 +229,8 @@ BuildRequires: ldb-tools
 
 ### SAMBA
 %description
-Samba is the standard Windows interoperability suite of programs for Linux and Unix.
+Samba is the standard Windows interoperability suite of programs for Linux and
+Unix.
 
 ### CLIENT
 %package client
@@ -238,6 +245,9 @@ Requires: libsmbclient = %{samba_depver}
 
 Provides: samba4-client = %{samba_depver}
 Obsoletes: samba4-client < %{samba_depver}
+
+Requires(post): %{_sbindir}/update-alternatives
+Requires(postun): %{_sbindir}/update-alternatives
 
 %description client
 The %{name}-client package provides some SMB/CIFS clients to complement
@@ -305,9 +315,13 @@ SMB/CIFS clients.
 %package dc
 Summary: Samba AD Domain Controller
 Group: Applications/System
+Requires: %{name} = %{samba_depver}
 Requires: %{name}-libs = %{samba_depver}
 Requires: %{name}-dc-libs = %{samba_depver}
 Requires: %{name}-python = %{samba_depver}
+Requires: %{name}-winbind = %{samba_depver}
+# samba-tool requirements
+Requires: python-crypto
 
 Provides: samba4-dc = %{samba_depver}
 Obsoletes: samba4-dc < %{samba_depver}
@@ -368,8 +382,8 @@ Requires: %{name} = %{samba_depver}
 Requires: %{name}-client-libs = %{samba_depver}
 Requires: %{name}-libs = %{samba_depver}
 
-Obsoletes: samba-glusterfs
-Provides: samba-glusterfs
+Obsoletes: samba-glusterfs < %{samba_depver}
+Provides: samba-glusterfs = %{samba_depver}
 
 %description vfs-glusterfs
 Samba VFS module for GlusterFS integration.
@@ -441,8 +455,9 @@ The libwbclient package contains the winbind client library from the Samba suite
 Summary: Developer tools for the winbind library
 Group: Development/Libraries
 Requires: libwbclient = %{samba_depver}
-Obsoletes: samba-winbind-devel
-Provides: samba-winbind-devel
+
+Provides: samba-winbind-devel = %{samba_depver}
+Obsoletes: samba-winbind-devel < %{samba_depver}
 
 %description -n libwbclient-devel
 The libwbclient-devel package provides developer tools for the wbclient library.
@@ -517,6 +532,9 @@ Summary: Libraries need by the testing tools for Samba servers and clients
 Group: Applications/System
 Requires: %{name}-client-libs = %{samba_depver}
 Requires: %{name}-libs = %{samba_depver}
+
+Provides: %{name}-test-devel = %{samba_depver}
+Obsoletes: %{name}-test-devel < %{samba_depver}
 
 %description test-libs
 %{name}-test-libs provides libraries required by the testing tools.
@@ -650,6 +668,9 @@ Requires: samba-client-libs = %{samba_depver}
 Requires: ctdb = %{samba_depver}
 Requires: nc
 
+Provides: ctdb-devel = %{samba_depver}
+Obsoletes: ctdb-devel < %{samba_depver}
+
 %description -n ctdb-tests
 Test suite for CTDB.
 CTDB is a cluster implementation of the TDB database used by Samba and other
@@ -775,6 +796,7 @@ then
     echo "Expected libwbclient version not found, please check if version has changed."
     exit -1
 fi
+
 
 touch %{buildroot}%{_libexecdir}/samba/cups_backend_smb
 
@@ -921,7 +943,7 @@ fi
 %post -n libsmbclient -p /sbin/ldconfig
 
 %postun -n libsmbclient -p /sbin/ldconfig
-%endif # with_libsmbclient
+%endif
 
 %if %with_libwbclient
 %posttrans -n libwbclient
@@ -1064,8 +1086,8 @@ fi
 %{_unitdir}/smb.service
 %attr(1777,root,root) %dir /var/spool/samba
 %dir %{_sysconfdir}/openldap/schema
-%{_sysconfdir}/openldap/schema/samba.schema
-%{_sysconfdir}/pam.d/samba
+%config %{_sysconfdir}/openldap/schema/samba.schema
+%config %{_sysconfdir}/pam.d/samba
 %{_mandir}/man1/smbstatus.1*
 %{_mandir}/man8/eventlogadm.8*
 %{_mandir}/man8/smbd.8*
@@ -1163,9 +1185,21 @@ fi
 %{_mandir}/man5/smbgetrc.5*
 %{_mandir}/man1/smbtar.1*
 %{_mandir}/man1/smbtree.1*
-%{_mandir}/man8/cifsdd.8*
+%{_mandir}/man8/cifsdd.8.*
 %{_mandir}/man8/samba-regedit.8*
 %{_mandir}/man8/smbspool.8*
+
+%if %{with_internal_tdb}
+%{_bindir}/tdbbackup
+%{_bindir}/tdbdump
+%{_bindir}/tdbrestore
+%{_bindir}/tdbtool
+%{_mandir}/man8/tdbbackup.8*
+%{_mandir}/man8/tdbdump.8*
+%{_mandir}/man8/tdbrestore.8*
+%{_mandir}/man8/tdbtool.8*
+%endif
+
 %{_mandir}/man8/smbspool_krb5_wrapper.8*
 
 %if %with_internal_ldb
@@ -1175,6 +1209,7 @@ fi
 %{_bindir}/ldbmodify
 %{_bindir}/ldbrename
 %{_bindir}/ldbsearch
+%{_libdir}/samba/libldb-cmdline-samba4.so
 %dir %{_libdir}/samba/ldb
 %{_libdir}/samba/ldb/asq.so
 %{_libdir}/samba/ldb/paged_results.so
@@ -1210,7 +1245,6 @@ fi
 %{_libdir}/libsmbconf.so.*
 %{_libdir}/libsmbldap.so.*
 %{_libdir}/libtevent-util.so.*
-%{_libdir}/libtevent-unix-util.so.*
 %{_libdir}/libdcerpc.so.*
 
 %dir %{_libdir}/samba
@@ -1241,7 +1275,6 @@ fi
 %{_libdir}/samba/libinterfaces-samba4.so
 %{_libdir}/samba/libiov-buf-samba4.so
 %{_libdir}/samba/libkrb5samba-samba4.so
-%{_libdir}/samba/libldb-cmdline-samba4.so
 %{_libdir}/samba/libldbsamba-samba4.so
 %{_libdir}/samba/liblibcli-lsa3-samba4.so
 %{_libdir}/samba/liblibcli-netlogon3-samba4.so
@@ -1255,9 +1288,10 @@ fi
 %{_libdir}/samba/libnet-keytab-samba4.so
 %{_libdir}/samba/libnetif-samba4.so
 %{_libdir}/samba/libnpa-tstream-samba4.so
+%{_libdir}/samba/libposix-eadb-samba4.so
 %{_libdir}/samba/libprinting-migrate-samba4.so
-%{_libdir}/samba/libregistry-samba4.so
 %{_libdir}/samba/libreplace-samba4.so
+%{_libdir}/samba/libregistry-samba4.so
 %{_libdir}/samba/libsamba-cluster-support-samba4.so
 %{_libdir}/samba/libsamba-debug-samba4.so
 %{_libdir}/samba/libsamba-modules-samba4.so
@@ -1269,6 +1303,7 @@ fi
 %{_libdir}/samba/libserver-id-db-samba4.so
 %{_libdir}/samba/libserver-role-samba4.so
 %{_libdir}/samba/libsmb-transport-samba4.so
+%{_libdir}/samba/libsmbclient-raw-samba4.so
 %{_libdir}/samba/libsmbd-base-samba4.so
 %{_libdir}/samba/libsmbd-conn-samba4.so
 %{_libdir}/samba/libsmbd-shim-samba4.so
@@ -1279,6 +1314,7 @@ fi
 %{_libdir}/samba/libtalloc-report-samba4.so
 %{_libdir}/samba/libtdb-wrap-samba4.so
 %{_libdir}/samba/libtime-basic-samba4.so
+%{_libdir}/samba/libtorture-samba4.so
 %{_libdir}/samba/libtrusts-util-samba4.so
 %{_libdir}/samba/libutil-cmdline-samba4.so
 %{_libdir}/samba/libutil-reg-samba4.so
@@ -1301,17 +1337,6 @@ fi
 %{_libdir}/samba/libpytalloc-util.so.2
 %{_libdir}/samba/libpytalloc-util.so.%{talloc_version}
 %{_mandir}/man3/talloc.3.gz
-%endif
-
-%if %{with_internal_tdb}
-%{_bindir}/tdbbackup
-%{_bindir}/tdbdump
-%{_bindir}/tdbrestore
-%{_bindir}/tdbtool
-%{_mandir}/man8/tdbbackup.8*
-%{_mandir}/man8/tdbdump.8*
-%{_mandir}/man8/tdbrestore.8*
-%{_mandir}/man8/tdbtool.8*
 %endif
 
 %if %{with_internal_tevent}
@@ -1365,12 +1390,9 @@ fi
 %{_libdir}/samba/pdb/tdbsam.so
 %{_libdir}/samba/pdb/wbc_sam.so
 
-%if %with_pam_smbpass
-%{_libdir}/security/pam_smbpass.so
-%endif
-
 %files common-tools
 %defattr(-,root,root)
+%{_bindir}/findsmb
 %{_bindir}/net
 %{_bindir}/pdbedit
 %{_bindir}/profiles
@@ -1485,7 +1507,6 @@ fi
 %{_libdir}/samba/libdnsserver-common-samba4.so
 %{_libdir}/samba/libdsdb-module-samba4.so
 %{_libdir}/samba/libntvfs-samba4.so
-%{_libdir}/samba/libposix-eadb-samba4.so
 %{_libdir}/samba/bind9/dlz_bind9_9.so
 %else
 %doc packaging/README.dc-libs
@@ -1591,7 +1612,6 @@ fi
 %{_libdir}/libsamdb.so
 %{_libdir}/libsmbconf.so
 %{_libdir}/libtevent-util.so
-%{_libdir}/libtevent-unix-util.so
 %{_libdir}/pkgconfig/dcerpc.pc
 %{_libdir}/pkgconfig/dcerpc_samr.pc
 %{_libdir}/pkgconfig/ndr.pc
@@ -1611,10 +1631,6 @@ fi
 %{_includedir}/samba-4.0/dcerpc_server.h
 %{_libdir}/libdcerpc-server.so
 %{_libdir}/pkgconfig/dcerpc_server.pc
-%endif
-
-%if %with_internal_talloc
-#{_includedir}/samba-4.0/pytalloc.h
 %endif
 
 %if ! %with_libsmbclient
@@ -1788,7 +1804,6 @@ fi
 ### TEST-LIBS
 %files test-libs
 %defattr(-,root,root)
-%{_libdir}/samba/libtorture-samba4.so
 %if %with_dc
 %{_libdir}/samba/libdlz-bind9-for-torture-samba4.so
 %else
@@ -1839,12 +1854,12 @@ fi
 %defattr(-,root,root)
 %doc ctdb/README
 %config(noreplace) %{_sysconfdir}/sysconfig/ctdb
-%config(noreplace) %{_sysconfdir}/ctdb/notify.sh
-%config(noreplace) %{_sysconfdir}/ctdb/debug-hung-script.sh
-%config(noreplace) %{_sysconfdir}/ctdb/ctdb-crash-cleanup.sh
-%config(noreplace) %{_sysconfdir}/ctdb/gcore_trace.sh
-%config(noreplace) %{_sysconfdir}/ctdb/functions
-%config(noreplace) %{_sysconfdir}/ctdb/debug_locks.sh
+%{_sysconfdir}/ctdb/notify.sh
+%{_sysconfdir}/ctdb/debug-hung-script.sh
+%{_sysconfdir}/ctdb/ctdb-crash-cleanup.sh
+%{_sysconfdir}/ctdb/gcore_trace.sh
+%{_sysconfdir}/ctdb/functions
+%{_sysconfdir}/ctdb/debug_locks.sh
 %dir %{_localstatedir}/lib/ctdb/
 %{_tmpfilesdir}/%{name}.conf
 
@@ -1853,39 +1868,39 @@ fi
 %dir %{_sysconfdir}/ctdb
 %{_sysconfdir}/ctdb/statd-callout
 %dir %{_sysconfdir}/ctdb/nfs-checks.d
-%{_sysconfdir}/ctdb/nfs-checks.d/00.portmapper.check
-%{_sysconfdir}/ctdb/nfs-checks.d/10.status.check
-%{_sysconfdir}/ctdb/nfs-checks.d/20.nfs.check
-%{_sysconfdir}/ctdb/nfs-checks.d/30.nlockmgr.check
-%{_sysconfdir}/ctdb/nfs-checks.d/40.mountd.check
-%{_sysconfdir}/ctdb/nfs-checks.d/50.rquotad.check
+%config %{_sysconfdir}/ctdb/nfs-checks.d/00.portmapper.check
+%config %{_sysconfdir}/ctdb/nfs-checks.d/10.status.check
+%config %{_sysconfdir}/ctdb/nfs-checks.d/20.nfs.check
+%config %{_sysconfdir}/ctdb/nfs-checks.d/30.nlockmgr.check
+%config %{_sysconfdir}/ctdb/nfs-checks.d/40.mountd.check
+%config %{_sysconfdir}/ctdb/nfs-checks.d/50.rquotad.check
 %{_sysconfdir}/ctdb/nfs-checks.d/README
 %{_sysconfdir}/ctdb/nfs-linux-kernel-callout
-%{_sysconfdir}/sudoers.d/ctdb
+%config %{_sysconfdir}/sudoers.d/ctdb
 %dir %{_sysconfdir}/ctdb/events.d
-%{_sysconfdir}/ctdb/events.d/00.ctdb
-%{_sysconfdir}/ctdb/events.d/01.reclock
-%{_sysconfdir}/ctdb/events.d/05.system
-%{_sysconfdir}/ctdb/events.d/10.external
-%{_sysconfdir}/ctdb/events.d/10.interface
-%{_sysconfdir}/ctdb/events.d/11.natgw
-%{_sysconfdir}/ctdb/events.d/11.routing
-%{_sysconfdir}/ctdb/events.d/13.per_ip_routing
-%{_sysconfdir}/ctdb/events.d/20.multipathd
-%{_sysconfdir}/ctdb/events.d/31.clamd
-%{_sysconfdir}/ctdb/events.d/40.vsftpd
-%{_sysconfdir}/ctdb/events.d/41.httpd
-%{_sysconfdir}/ctdb/events.d/49.winbind
-%{_sysconfdir}/ctdb/events.d/50.samba
-%{_sysconfdir}/ctdb/events.d/60.nfs
-%{_sysconfdir}/ctdb/events.d/70.iscsi
-%{_sysconfdir}/ctdb/events.d/91.lvs
-%{_sysconfdir}/ctdb/events.d/99.timeout
+%config %{_sysconfdir}/ctdb/events.d/00.ctdb
+%config %{_sysconfdir}/ctdb/events.d/01.reclock
+%config %{_sysconfdir}/ctdb/events.d/05.system
+%config %{_sysconfdir}/ctdb/events.d/06.nfs
+%config %{_sysconfdir}/ctdb/events.d/10.external
+%config %{_sysconfdir}/ctdb/events.d/10.interface
+%config %{_sysconfdir}/ctdb/events.d/11.natgw
+%config %{_sysconfdir}/ctdb/events.d/11.routing
+%config %{_sysconfdir}/ctdb/events.d/13.per_ip_routing
+%config %{_sysconfdir}/ctdb/events.d/20.multipathd
+%config %{_sysconfdir}/ctdb/events.d/31.clamd
+%config %{_sysconfdir}/ctdb/events.d/40.vsftpd
+%config %{_sysconfdir}/ctdb/events.d/41.httpd
+%config %{_sysconfdir}/ctdb/events.d/49.winbind
+%config %{_sysconfdir}/ctdb/events.d/50.samba
+%config %{_sysconfdir}/ctdb/events.d/60.nfs
+%config %{_sysconfdir}/ctdb/events.d/70.iscsi
+%config %{_sysconfdir}/ctdb/events.d/91.lvs
+%config %{_sysconfdir}/ctdb/events.d/99.timeout
 %{_sysconfdir}/ctdb/events.d/README
 %dir %{_sysconfdir}/ctdb/notify.d
 %{_sysconfdir}/ctdb/notify.d/README
 %dir %{_libexecdir}/ctdb
-%{_libexecdir}/ctdb/smnotify
 %{_libexecdir}/ctdb/ctdb_lock_helper
 %{_libexecdir}/ctdb/ctdb_event_helper
 %{_libexecdir}/ctdb/ctdb_mutex_fcntl_helper
@@ -1893,6 +1908,7 @@ fi
 %{_libexecdir}/ctdb/ctdb_natgw
 %{_libexecdir}/ctdb/ctdb_killtcp
 %{_libexecdir}/ctdb/ctdb_lvs
+%{_libexecdir}/ctdb/smnotify
 %{_prefix}/lib/tmpfiles.d/ctdb.conf
 %{_sbindir}/ctdbd
 %{_sbindir}/ctdbd_wrapper
@@ -1916,29 +1932,28 @@ fi
 %files -n ctdb-tests
 %defattr(-,root,root)
 %dir %{_libdir}/ctdb-tests
-%{_libdir}/ctdb-tests/ctdb_bench
 %{_libdir}/ctdb-tests/comm_client_test
 %{_libdir}/ctdb-tests/comm_server_test
 %{_libdir}/ctdb-tests/comm_test
-%{_libdir}/ctdb-tests/db_hash_test
+%{_libdir}/ctdb-tests/ctdb_bench
 %{_libdir}/ctdb-tests/ctdb_fetch
 %{_libdir}/ctdb-tests/ctdb_fetch_one
 %{_libdir}/ctdb-tests/ctdb_fetch_readonly_loop
 %{_libdir}/ctdb-tests/ctdb_fetch_readonly_once
-%{_libdir}/ctdb-tests/ctdb_functest
 %{_libdir}/ctdb-tests/ctdb_lock_tdb
 %{_libdir}/ctdb-tests/ctdb_packet_parse
 %{_libdir}/ctdb-tests/ctdb_persistent
 %{_libdir}/ctdb-tests/ctdb_porting_tests
 %{_libdir}/ctdb-tests/ctdb_randrec
 %{_libdir}/ctdb-tests/ctdb_store
-%{_libdir}/ctdb-tests/ctdb_stubtest
 %{_libdir}/ctdb-tests/ctdb_takeover_tests
 %{_libdir}/ctdb-tests/ctdb_trackingdb_test
 %{_libdir}/ctdb-tests/ctdb_transaction
 %{_libdir}/ctdb-tests/ctdb_traverse
 %{_libdir}/ctdb-tests/ctdb_update_record
 %{_libdir}/ctdb-tests/ctdb_update_record_persistent
+%{_libdir}/ctdb-tests/db_hash_test
+%{_libdir}/ctdb-tests/fake_ctdbd
 %{_libdir}/ctdb-tests/pkt_read_test
 %{_libdir}/ctdb-tests/pkt_write_test
 %{_libdir}/ctdb-tests/protocol_client_test
@@ -1949,24 +1964,28 @@ fi
 %{_bindir}/ctdb_run_tests
 %{_bindir}/ctdb_run_cluster_tests
 %dir %{_datadir}/ctdb-tests
+%dir %{_datadir}/ctdb-tests/eventscripts
 %{_datadir}/ctdb-tests/eventscripts/etc-ctdb/events.d
 %{_datadir}/ctdb-tests/eventscripts/etc-ctdb/functions
 %{_datadir}/ctdb-tests/eventscripts/etc-ctdb/nfs-checks.d
 %{_datadir}/ctdb-tests/eventscripts/etc-ctdb/nfs-linux-kernel-callout
 %{_datadir}/ctdb-tests/eventscripts/etc-ctdb/statd-callout
+%dir %{_datadir}/ctdb-tests/onnode
 %{_datadir}/ctdb-tests/onnode/functions
+%dir %{_datadir}/ctdb-tests/scripts
 %{_datadir}/ctdb-tests/scripts/common.sh
 %{_datadir}/ctdb-tests/scripts/integration.bash
 %{_datadir}/ctdb-tests/scripts/test_wrap
 %{_datadir}/ctdb-tests/scripts/unit.sh
+%dir %{_datadir}/ctdb-tests/simple
 %{_datadir}/ctdb-tests/simple/functions
 %{_datadir}/ctdb-tests/simple/nodes
 %doc ctdb/tests/README
 %endif # with_clustering_support
 
 %changelog
-* Tue Apr 12 2016 Guenther Deschner <gdeschner@redhat.com> - 4.3.8-0
-- Update to Samba 4.3.8, fix badlock security bug
+* Tue Apr 12 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.2-1
+- Update to Samba 4.4.2, fix badlock security bug
 - resolves: #1326453 - CVE-2015-5370
 - resolves: #1326453 - CVE-2016-2110
 - resolves: #1326453 - CVE-2016-2111
@@ -1976,12 +1995,40 @@ fi
 - resolves: #1326453 - CVE-2016-2115
 - resolves: #1326453 - CVE-2016-2118
 
-* Tue Mar 08 2016 Guenther Deschner <gdeschner@redhat.com> - 4.3.6-0
-- Update to Samba 4.3.6
+* Tue Mar 22 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-1
+- Update to Samba 4.4.0
+
+* Wed Mar 16 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-0.8.rc5
+- Update to Samba 4.4.0rc5
+
+* Tue Mar 08 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-0.7.rc4
+- Update to Samba 4.4.0rc4
 - resolves: #1315942 - CVE-2015-7560 Incorrect ACL get/set allowed on symlink path
 
-* Tue Feb 23 2016 Guenther Deschner <gdeschner@redhat.com> - 4.3.5-0
-- resolves: #1261230 - Update to Samba 4.3.5
+* Tue Feb 23 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-0.6.rc3
+- Update to Samba 4.4.0rc3
+
+* Wed Feb 17 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-0.5.rc2
+- Activate multi channel support (switched off by default)
+
+* Mon Feb 15 2016 Andreas Schneider <asn@redhat.com> - 4.4.0-0.4.rc2
+- More spec file fixes
+- resolves: #1306542 - scriptlet failure because of comments
+
+* Mon Feb 15 2016 Andreas Schneider <asn@redhat.com> - 4.4.0-0.3.rc2
+- More spec file fixes
+
+* Mon Feb 15 2016 Andreas Schneider <asn@redhat.com> - 4.4.0-0.2.rc2
+- More spec file fixes
+
+* Wed Feb 10 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-0.1.rc2
+- Update to Samba 4.4.0rc2
+
+* Thu Feb 04 2016 Fedora Release Engineering <releng@fedoraproject.org> - 2:4.4.0-0.1.rc1
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
+
+* Wed Jan 27 2016 Guenther Deschner <gdeschner@redhat.com> - 4.4.0-0.0.rc1
+- Update to Samba 4.4.0rc1
 
 * Fri Jan 22 2016 Alexander Bokovoy <abokovoy@redhat.com> - 4.3.4-1
 - resolves: #1300038 - PANIC: Bad talloc magic value - wrong talloc version used/mixed
